@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Buckshot Roulette (Demo)</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #111;
+      color: #eee;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    .game {
+      background: #1b1b1b;
+      border-radius: 10px;
+      padding: 20px;
+      max-width: 700px;
+      width: 100%;
+      box-shadow: 0 0 20px rgba(0,0,0,0.6);
+    }
+
+    h1 {
+      margin-top: 0;
+      text-align: center;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .col {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .panel {
+      background: #252525;
+      border-radius: 8px;
+      padding: 10px;
+      min-height: 80px;
+    }
+
+    .panel h2 {
+      margin-top: 0;
+      font-size: 1rem;
+      border-bottom: 1px solid #444;
+      padding-bottom: 4px;
+      margin-bottom: 6px;
+    }
+
+    button {
+      background: #3b82f6;
+      border: none;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+
+    button:disabled {
+      background: #555;
+      cursor: not-allowed;
+    }
+
+    .danger {
+      background: #ef4444;
+    }
+
+    .secondary {
+      background: #6b7280;
+    }
+
+    .log {
+      max-height: 180px;
+      overflow-y: auto;
+      font-size: 0.9rem;
+    }
+
+    .log-entry {
+      margin-bottom: 4px;
+    }
+
+    .hp-bar {
+      height: 12px;
+      background: #333;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .hp-fill {
+      height: 100%;
+      background: #22c55e;
+      width: 100%;
+      transition: width 0.2s;
+    }
+
+    .rounds {
+      display: flex;
+      gap: 4px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+
+    .round {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #4b5563;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: #111;
+      font-weight: bold;
+    }
+
+    .round.live {
+      background: #f97316;
+    }
+
+    .round.blank {
+      background: #9ca3af;
+    }
+
+    .inventory {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .item {
+      background: #374151;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .item button {
+      padding: 2px 6px;
+      font-size: 0.7rem;
+    }
+
+    .status {
+      font-size: 0.9rem;
+      margin-top: 4px;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    .small {
+      font-size: 0.8rem;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+<div class="game">
+  <h1>Buckshot Roulette (Demo)</h1>
+
+  <div class="row">
+    <div class="col">
+      <div class="panel">
+        <h2>Player</h2>
+        <div>HP: <span id="playerHpText">3</span></div>
+        <div class="hp-bar"><div id="playerHpBar" class="hp-fill"></div></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="panel">
+        <h2>Dealer</h2>
+        <div>HP: <span id="dealerHpText">3</span></div>
+        <div class="hp-bar"><div id="dealerHpBar" class="hp-fill"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <div class="panel">
+        <h2>Shotgun</h2>
+        <div>Chamber: <span id="chamberIndex">0</span> / 6</div>
+        <div class="rounds" id="roundsView"></div>
+        <div class="status" id="roundInfo"></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="panel">
+        <h2>Inventory (max 3)</h2>
+        <div class="inventory" id="inventory"></div>
+        <div class="status small" id="inventoryInfo"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Actions</h2>
+    <div class="row">
+      <div class="col center">
+        <button id="btnShootSelf" class="danger">Shoot Yourself</button>
+      </div>
+      <div class="col center">
+        <button id="btnShootDealer">Shoot Dealer</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col center">
+        <button id="btnNextRound" class="secondary">Start / Next Round</button>
+      </div>
+      <div class="col center">
+        <button id="btnRestart" class="secondary">Restart Game</button>
+      </div>
+    </div>
+    <div class="center small" style="margin-top:6px;">
+      Each round: 6 random shells (live/blank). You get new random items unless inventory is full.
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Log</h2>
+    <div id="log" class="log"></div>
+  </div>
+
+  <div class="center small" style="margin-top:8px;">
+    Save this file as <code>buckshot-roulette.html</code> and open in a browser.
+  </div>
+</div>
+
+<script>
+  // --- Basic game state ---
+  const MAX_HP = 3;
+  const CHAMBER_SIZE = 6;
+  const MAX_ITEMS = 3;
+
+  let playerHp, dealerHp;
+  let rounds = [];      // array of "live" | "blank"
+  let chamberIndex;     // 0..5
+  let playerTurn;       // true if it's player's turn
+  let inventory = [];   // array of item objects
+  let roundActive = false;
+
+  const logEl = document.getElementById("log");
+  const roundsViewEl = document.getElementById("roundsView");
+  const roundInfoEl = document.getElementById("roundInfo");
+  const chamberIndexEl = document.getElementById("chamberIndex");
+  const playerHpText = document.getElementById("playerHpText");
+  const dealerHpText = document.getElementById("dealerHpText");
+  const playerHpBar = document.getElementById("playerHpBar");
+  const dealerHpBar = document.getElementById("dealerHpBar");
+  const inventoryEl = document.getElementById("inventory");
+  const inventoryInfoEl = document.getElementById("inventoryInfo");
+
+  const btnShootSelf = document.getElementById("btnShootSelf");
+  const btnShootDealer = document.getElementById("btnShootDealer");
+  const btnNextRound = document.getElementById("btnNextRound");
+  const btnRestart = document.getElementById("btnRestart");
+
+  // --- Items (simple demo set) ---
+  const ITEM_POOL = [
+    {
+      id: "magnifying_glass",
+      name: "Magnifying Glass",
+      description: "Reveal the next shell type.",
+      use() {
+        if (!roundActive) return log("You can only use items during a round.");
+        if (chamberIndex >= rounds.length) return log("No shells left to inspect.");
+        const type = rounds[chamberIndex];
+        log("You peek at the next shell: " + (type === "live" ? "LIVE" : "BLANK") + ".");
+        roundInfoEl.textContent = "Next shell is " + type.toUpperCase() + ".";
+      }
+    },
+    {
+      id: "cigarette",
+      name: "Cigarette",
+      description: "Heal 1 HP (up to max).",
+      use() {
+        if (playerHp <= 0) return;
+        if (playerHp >= MAX_HP) {
+          log("You're already at full HP.");
+          return;
+        }
+        playerHp = Math.min(MAX_HP, playerHp + 1);
+        log("You smoke a cigarette and recover 1 HP.");
+        updateHpViews();
+      }
+    },
+    {
+      id: "handcuffs",
+      name: "Handcuffs",
+      description: "Skip the dealer's next turn.",
+      use() {
+        if (!roundActive) return log("You can only use items during a round.");
+        // We simulate this by forcing it to stay the player's turn
+        log("You handcuff the dealer. Their next turn is skipped.");
+        // Mark a flag on state:
+        dealerSkipNextTurn = true;
+      }
+    },
+    {
+      id: "beer",
+      name: "Beer",
+      description: "Random effect: heal 1 or lose 1 HP.",
+      use() {
+        const roll = Math.random() < 0.5 ? -1 : 1;
+        if (roll > 0) {
+          playerHp = Math.min(MAX_HP, playerHp + 1);
+          log("The beer was good. You gain 1 HP.");
+        } else {
+          playerHp = Math.max(0, playerHp - 1);
+          log("Bad beer. You lose 1 HP.");
+        }
+        updateHpViews();
+        checkGameOver();
+      }
+    }
+  ];
+
+  let dealerSkipNextTurn = false;
+
+  // --- Utility functions ---
+  function log(msg) {
+    const div = document.createElement("div");
+    div.className = "log-entry";
+    div.textContent = msg;
+    logEl.appendChild(div);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function randomShell() {
+    // 50/50 live vs blank for demo
+    return Math.random() < 0.5 ? "live" : "blank";
+  }
+
+  function loadNewRound() {
+    rounds = [];
+    for (let i = 0; i < CHAMBER_SIZE; i++) {
+      rounds.push(randomShell());
+    }
+    chamberIndex = 0;
+    roundActive = true;
+    playerTurn = true;
+    dealerSkipNextTurn = false;
+    log("New round: 6 random shells loaded.");
+    updateRoundsView();
+    updateRoundInfo();
+    updateButtons();
+    maybeGiveItems();
+  }
+
+  function maybeGiveItems() {
+    if (inventory.length >= MAX_ITEMS) {
+      inventoryInfoEl.textContent = "Inventory full. No new items this round.";
+      log("Your inventory is full. You receive no new items.");
+      updateInventoryView();
+      return;
+    }
+    // Give 1–2 random items, but not exceeding MAX_ITEMS
+    const slotsLeft = MAX_ITEMS - inventory.length;
+    const count = Math.min(slotsLeft, 1 + Math.floor(Math.random() * 2));
+    for (let i = 0; i < count; i++) {
+      const base = ITEM_POOL[Math.floor(Math.random() * ITEM_POOL.length)];
+      // clone shallow
+      inventory.push({ ...base });
+      log("You received item: " + base.name + ".");
+    }
+    inventoryInfoEl.textContent = "You received " + count + " new item(s).";
+    updateInventoryView();
+  }
+
+  function updateRoundsView() {
+    roundsViewEl.innerHTML = "";
+    rounds.forEach((type, idx) => {
+      const span = document.createElement("div");
+      span.className = "round " + type;
+      span.textContent = idx + 1;
+      if (idx < chamberIndex) {
+        span.style.opacity = "0.3";
+      }
+      roundsViewEl.appendChild(span);
+    });
+    chamberIndexEl.textContent = chamberIndex;
+  }
+
+  function updateRoundInfo() {
+    if (!roundActive) {
+      roundInfoEl.textContent = "No active round. Click 'Start / Next Round'.";
+      return;
+    }
+    const remaining = rounds.length - chamberIndex;
+    roundInfoEl.textContent = remaining + " shell(s) remaining.";
+  }
+
+  function updateHpViews() {
+    playerHpText.textContent = playerHp;
+    dealerHpText.textContent = dealerHp;
+    playerHpBar.style.width = (playerHp / MAX_HP * 100) + "%";
+    dealerHpBar.style.width = (dealerHp / MAX_HP * 100) + "%";
+  }
+
+  function updateInventoryView() {
+    inventoryEl.innerHTML = "";
+    inventory.forEach((item, idx) => {
+      const div = document.createElement("div");
+      div.className = "item";
+      const span = document.createElement("span");
+      span.textContent = item.name;
+      const btn = document.createElement("button");
+      btn.textContent = "Use";
+      btn.onclick = () => {
+        item.use();
+        // Remove item after use
+        inventory.splice(idx, 1);
+        updateInventoryView();
+      };
+      div.appendChild(span);
+      div.appendChild(btn);
+      inventoryEl.appendChild(div);
+    });
+    if (inventory.length === 0) {
+      inventoryInfoEl.textContent = "No items.";
+    }
+  }
+
+  function updateButtons() {
+    const canAct = roundActive && playerTurn && playerHp > 0 && dealerHp > 0;
+    btnShootSelf.disabled = !canAct;
+    btnShootDealer.disabled = !canAct;
+  }
+
+  function pullTrigger(target) {
+    if (!roundActive) {
+      log("No active round. Start a new one.");
+      return;
+    }
+    if (chamberIndex >= rounds.length) {
+      log("No shells left. Start a new round.");
+      roundActive = false;
+      updateRoundInfo();
+      updateButtons();
+      return;
+    }
+
+    const shell = rounds[chamberIndex];
+    chamberIndex++;
+    updateRoundsView();
+
+    if (shell === "live") {
+      if (target === "player") {
+        playerHp = Math.max(0, playerHp - 1);
+        log("BANG! You shot yourself. You lose 1 HP.");
+      } else {
+        dealerHp = Math.max(0, dealerHp - 1);
+        log("BANG! You shot the dealer. They lose 1 HP.");
+      }
+    } else {
+      log("Click. It was a blank.");
+    }
+
+    updateHpViews();
+    checkGameOver();
+
+    if (!roundActive) return;
+
+    if (chamberIndex >= rounds.length) {
+      log("All shells used. Round over.");
+      roundActive = false;
+      updateRoundInfo();
+      updateButtons();
+      return;
+    }
+
+    // Turn passes if it was a blank or if you shot the other person.
+    // You can tweak this logic to match your preferred rules.
+    if (shell === "blank") {
+      playerTurn = !playerTurn;
+    } else {
+      // live shell: if you shot yourself, turn passes; if dealer, you keep turn
+      if (target === "player") {
+        playerTurn = !playerTurn;
+      } else {
+        playerTurn = true;
+      }
+    }
+
+    updateButtons();
+
+    if (!playerTurn && roundActive) {
+      dealerAct();
+    }
+  }
+
+  function dealerAct() {
+    if (dealerHp <= 0 || playerHp <= 0) return;
+    if (!roundActive) return;
+
+    if (dealerSkipNextTurn) {
+      log("Dealer's turn is skipped due to handcuffs.");
+      dealerSkipNextTurn = false;
+      playerTurn = true;
+      updateButtons();
+      return;
+    }
+
+    // Simple AI: if player HP is 1, 70% chance to shoot player, else random
+    let target = "self";
+    if (playerHp === 1 && Math.random() < 0.7) {
+      target = "player";
+    } else if (Math.random() < 0.5) {
+      target = "player";
+    }
+
+    log("Dealer aims at " + (target === "player" ? "you" : "themselves") + "...");
+    setTimeout(() => {
+      pullTrigger(target === "player" ? "player" : "dealer");
+    }, 600);
+  }
+
+  function checkGameOver() {
+    if (playerHp <= 0 && dealerHp <= 0) {
+      log("Both you and the dealer are dead. It's a draw.");
+      roundActive = false;
+      updateButtons();
+      return;
+    }
+    if (playerHp <= 0) {
+      log("You died. Game over.");
+      roundActive = false;
+      updateButtons();
+      return;
+    }
+    if (dealerHp <= 0) {
+      log("The dealer is dead. You win!");
+      roundActive = false;
+      updateButtons();
+      return;
+    }
+  }
+
+  function restartGame() {
+    playerHp = MAX_HP;
+    dealerHp = MAX_HP;
+    inventory = [];
+    rounds = [];
+    chamberIndex = 0;
+    roundActive = false;
+    playerTurn = true;
+    dealerSkipNextTurn = false;
+    logEl.innerHTML = "";
+    log("Game restarted.");
+    updateHpViews();
+    updateRoundsView();
+    updateRoundInfo();
+    updateInventoryView();
+    updateButtons();
+  }
+
+  // --- Event listeners ---
+  btnShootSelf.addEventListener("click", () => {
+    if (!playerTurn) return;
+    pullTrigger("player");
+  });
+
+  btnShootDealer.addEventListener("click", () => {
+    if (!playerTurn) return;
+    pullTrigger("dealer");
+  });
+
+  btnNextRound.addEventListener("click", () => {
+    if (roundActive) {
+      log("Round already in progress.");
+      return;
+    }
+    loadNewRound();
+  });
+
+  btnRestart.addEventListener("click", () => {
+    restartGame();
+  });
+
+  // --- Init ---
+  restartGame();
+</script>
+</body>
+</html>
